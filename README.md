@@ -1,7 +1,7 @@
-# JChatMind
+# AiteAgent
 
 <div align="center">
-  <h3>面向智能体应用的全栈 AI Chat 平台</h3>
+  <h3>面向智能体应用的全栈 Agent 平台</h3>
   <p>
     <strong>Spring AI Agent Loop</strong> ·
     <strong>RAG 知识库</strong> ·
