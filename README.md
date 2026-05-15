@@ -1,7 +1,7 @@
 # Aite Agent
 
 <div align="center">
-  <h3>面向智能体应用的全栈 AI Chat 平台</h3>
+  <h3>面向智能体应用的全栈 Agent 平台</h3>
   <p>
     <strong>Spring AI Agent Loop</strong> ·
     <strong>RAG 知识库</strong> ·
@@ -18,15 +18,14 @@
   </p>
 </div>
 
-**Aite Agent**（前端品牌名 **Aite助手**）是一个基于 Spring Boot、Spring AI 和 React 的智能体聊天系统。它围绕 Agent Loop、工具调用、知识库检索、上下文记忆、用户鉴权与实时响应构建，适合用于学习 AI Agent 后端架构、RAG 链路、多模型接入与多租户 SaaS 式数据隔离。
+**Aite Agent**是一个基于 Spring Boot、Spring AI 和 React 的智能体聊天系统。它围绕 Agent Loop、工具调用、知识库检索、上下文记忆、用户鉴权与实时响应构建，适合用于学习 AI Agent 后端架构、RAG 链路、多模型接入与多租户 SaaS 式数据隔离。
 
-> 仓库地址：[github.com/Zzhi66/aite_Agent](https://github.com/Zzhi66/aite_Agent)
 
 ## 项目亮点
 
 - **Agent Loop**：支持思考、执行、工具调用、状态流转和最大轮次控制。
 - **RAG 知识库**：Markdown 上传、解析、分块、Embedding 入库与 pgvector 相似度检索。
-- **长短期记忆**：Redis 保存近期对话；PostgreSQL + pgvector 沉淀用户偏好与事实记忆。
+- **长短期记忆**：Redis 保存近期对话；PostgreSQL + pgvector 沉淀用户偏好与事实记忆（可切换到云向量数据库）。
 - **JWT 鉴权与多租户**：注册/登录、双 Token 刷新；Agent、会话、知识库按 `user_id` 隔离。
 - **多模型接入**：DeepSeek、智谱 AI、OpenAI 兼容接口。
 - **工具系统**：文件系统、邮件、任务终止等可扩展工具。
