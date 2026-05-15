@@ -15,10 +15,12 @@ import com.kama.jchatmind.model.entity.Agent;
 import com.kama.jchatmind.model.entity.KnowledgeBase;
 import com.kama.jchatmind.service.ChatMemoryCacheService;
 import com.kama.jchatmind.service.ChatMessageFacadeService;
+import com.kama.jchatmind.service.LongTermMemoryService;
 import com.kama.jchatmind.service.SseService;
 import com.kama.jchatmind.service.ToolFacadeService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.*;
 import org.springframework.ai.tool.ToolCallback;
@@ -45,6 +47,16 @@ public class JChatMindFactory {
     private final ChatMemoryCacheService chatMemoryCacheService;
     private final ChatMessageFacadeService chatMessageFacadeService;
     private final ChatMessageConverter chatMessageConverter;
+    private final LongTermMemoryService longTermMemoryService;
+
+    @Value("${jchatmind.memory.long-term.injection.enabled:true}")
+    private boolean longTermInjectionEnabled;
+
+    @Value("${jchatmind.memory.long-term.injection.max-items:4}")
+    private int longTermInjectionMaxItems;
+
+    @Value("${jchatmind.memory.long-term.injection.header:以下是与当前问题相关的长期记忆，请优先遵循用户偏好并参考用户事实。}")
+    private String longTermInjectionHeader;
 
     // 运行时 Agent 配置
     private AgentDTO agentConfig;
@@ -59,7 +71,8 @@ public class JChatMindFactory {
             ToolFacadeService toolFacadeService,
             ChatMemoryCacheService chatMemoryCacheService,
             ChatMessageFacadeService chatMessageFacadeService,
-            ChatMessageConverter chatMessageConverter
+            ChatMessageConverter chatMessageConverter,
+            LongTermMemoryService longTermMemoryService
     ) {
         this.chatClientRegistry = chatClientRegistry;
         this.sseService = sseService;
@@ -71,6 +84,7 @@ public class JChatMindFactory {
         this.chatMemoryCacheService = chatMemoryCacheService;
         this.chatMessageFacadeService = chatMessageFacadeService;
         this.chatMessageConverter = chatMessageConverter;
+        this.longTermMemoryService = longTermMemoryService;
     }
 
     private Agent loadAgent(String agentId) {
@@ -78,9 +92,9 @@ public class JChatMindFactory {
     }
 
     /**
-     * 将数据库中存储的记忆恢复成 List<Message> 结构
+     * 将数据库（使用Redis）中存储的记忆恢复成 List<Message> 结构
      */
-    private List<Message> loadMemory(String chatSessionId) {
+    private List<Message> loadMemory(String agentId, String chatSessionId, String latestUserInput) {
         int messageLength = agentConfig.getChatOptions().getMessageLength();
         List<ChatMessageDTO> chatMessages = chatMemoryCacheService.getRecentMessages(chatSessionId, messageLength);
         if (chatMessages.isEmpty()) {
@@ -120,7 +134,28 @@ public class JChatMindFactory {
                     throw new IllegalStateException("不支持的 Message 类型");
             }
         }
+        injectLongTermMemories(memory, agentId, chatSessionId, latestUserInput);
         return memory;
+    }
+
+    private void injectLongTermMemories(List<Message> memory, String agentId, String chatSessionId, String latestUserInput) {
+        if (!longTermInjectionEnabled || !StringUtils.hasText(latestUserInput)) {
+            return;
+        }
+        List<LongTermMemoryService.RecallMemory> recalls = longTermMemoryService.recallForPrompt(
+                agentId, chatSessionId, latestUserInput
+        );
+        if (recalls.isEmpty()) {
+            return;
+        }
+        int limit = Math.min(longTermInjectionMaxItems, recalls.size());
+        StringBuilder builder = new StringBuilder(longTermInjectionHeader).append("\n");
+        for (int i = 0; i < limit; i++) {
+            LongTermMemoryService.RecallMemory recall = recalls.get(i);
+            String label = recall.getType() == LongTermMemoryService.MemoryType.FACT ? "事实" : "偏好";
+            builder.append("- [").append(label).append("] ").append(recall.getContent()).append("\n");
+        }
+        memory.add(0, new SystemMessage(builder.toString().trim()));
     }
 
     private AgentDTO toAgentConfig(Agent agent) {
@@ -233,6 +268,10 @@ public class JChatMindFactory {
      * 创建一个 JChatMind 实例
      */
     public JChatMind create(String agentId, String chatSessionId) {
+        return create(agentId, chatSessionId, null);
+    }
+
+    public JChatMind create(String agentId, String chatSessionId, String latestUserInput) {
         if (!StringUtils.hasText(agentId)) {
             throw new IllegalArgumentException("agentId 不能为空，请先选择一个智能体助手");
         }
@@ -241,7 +280,7 @@ public class JChatMindFactory {
             throw new IllegalStateException("未找到 ID 为 " + agentId + " 的智能体助手");
         }
         AgentDTO agentConfig = toAgentConfig(agent);
-        List<Message> memory = loadMemory(chatSessionId);
+        List<Message> memory = loadMemory(agentId, chatSessionId, latestUserInput);
 
         // 解析 agent 的支持的知识库
         List<KnowledgeBaseDTO> knowledgeBases = resolveRuntimeKnowledgeBases(agentConfig);

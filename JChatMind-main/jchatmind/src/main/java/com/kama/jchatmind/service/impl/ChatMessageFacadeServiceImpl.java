@@ -14,6 +14,7 @@ import com.kama.jchatmind.model.response.GetChatMessagesResponse;
 import com.kama.jchatmind.model.vo.ChatMessageVO;
 import com.kama.jchatmind.service.ChatMemoryCacheService;
 import com.kama.jchatmind.service.ChatMessageFacadeService;
+import com.kama.jchatmind.service.LongTermMemoryService;
 import lombok.AllArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -29,6 +30,7 @@ public class ChatMessageFacadeServiceImpl implements ChatMessageFacadeService {
     private final ChatMessageMapper chatMessageMapper;
     private final ChatMessageConverter chatMessageConverter;
     private final ChatMemoryCacheService chatMemoryCacheService;
+    private final LongTermMemoryService longTermMemoryService;
     private final ApplicationEventPublisher publisher;
 
     @Override
@@ -68,6 +70,15 @@ public class ChatMessageFacadeServiceImpl implements ChatMessageFacadeService {
     @Override
     public CreateChatMessageResponse createChatMessage(CreateChatMessageRequest request) {
         ChatMessage chatMessage = doCreateChatMessage(request);
+        if (request != null
+                && request.getRole() == ChatMessageDTO.RoleType.USER
+                && org.springframework.util.StringUtils.hasText(request.getAgentId())) {
+            longTermMemoryService.ingestFromUserInput(
+                    request.getAgentId(),
+                    chatMessage.getSessionId(),
+                    chatMessage.getContent()
+            );
+        }
         // 发布聊天通知事件
         publisher.publishEvent(new ChatEvent(
                         request.getAgentId(),
