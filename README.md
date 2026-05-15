@@ -1,11 +1,12 @@
-# AiteAgent
+# Aite Agent
 
 <div align="center">
-  <h3>面向智能体应用的全栈 Agent 平台</h3>
+  <h3>面向智能体应用的全栈 AI Chat 平台</h3>
   <p>
     <strong>Spring AI Agent Loop</strong> ·
     <strong>RAG 知识库</strong> ·
-    <strong>长期记忆</strong> ·
+    <strong>JWT 鉴权</strong> ·
+    <strong>多租户隔离</strong> ·
     <strong>SSE 流式响应</strong>
   </p>
   <p>
@@ -17,122 +18,99 @@
   </p>
 </div>
 
-JChatMind 是一个基于 Spring Boot、Spring AI 和 React 的智能体聊天系统。它不只是“调用一次大模型接口”的聊天框，而是围绕 Agent Loop、工具调用、知识库检索、上下文记忆和实时响应构建的一套完整 AI 应用工程。
+**Aite Agent**（前端品牌名 **Aite助手**）是一个基于 Spring Boot、Spring AI 和 React 的智能体聊天系统。它围绕 Agent Loop、工具调用、知识库检索、上下文记忆、用户鉴权与实时响应构建，适合用于学习 AI Agent 后端架构、RAG 链路、多模型接入与多租户 SaaS 式数据隔离。
 
-项目适合用于学习和展示 AI Agent 后端架构、RAG 检索链路、多模型接入、前后端实时通信，以及面向真实业务的记忆系统设计。
+> 仓库地址：[github.com/Zzhi66/aite_Agent](https://github.com/Zzhi66/aite_Agent)
 
 ## 项目亮点
 
-- Agent Loop：支持思考、执行、工具调用、状态流转和最大轮次控制，让模型可以完成多步骤任务。
-- RAG 知识库：支持 Markdown 文档上传、解析、分块、Embedding 入库和 pgvector 相似度检索。
-- 长短期记忆：Redis 保存近期对话上下文，PostgreSQL + pgvector 沉淀用户偏好和事实记忆。
-- 多模型接入：通过统一注册与调用方式接入 DeepSeek、智谱 AI 和 OpenAI 兼容接口。
-- 工具系统：内置文件系统、邮件、任务终止等工具，并保留扩展新工具的结构。
-- 实时体验：使用 SSE 向前端推送 Agent 执行状态和模型回复，用户可以看到任务进展。
-- 前后端分离：后端提供 RESTful API 和 SSE 通道，前端使用 React、Vite、Ant Design 构建交互界面。
+- **Agent Loop**：支持思考、执行、工具调用、状态流转和最大轮次控制。
+- **RAG 知识库**：Markdown 上传、解析、分块、Embedding 入库与 pgvector 相似度检索。
+- **长短期记忆**：Redis 保存近期对话；PostgreSQL + pgvector 沉淀用户偏好与事实记忆。
+- **JWT 鉴权与多租户**：注册/登录、双 Token 刷新；Agent、会话、知识库按 `user_id` 隔离。
+- **多模型接入**：DeepSeek、智谱 AI、OpenAI 兼容接口。
+- **工具系统**：文件系统、邮件、任务终止等可扩展工具。
+- **实时体验**：SSE 推送 Agent 状态与流式回复；前端 React + Ant Design。
 
 ## 架构概览
 
 ```mermaid
 flowchart LR
     U[用户] --> UI[React 前端]
-    UI --> API[Spring Boot API]
-    UI --> SSE[SSE 实时通道]
-    API --> Agent[JChatMind Agent]
-    Agent --> LLM[大模型服务]
-    Agent --> Tool[工具调用系统]
+    UI -->|Bearer JWT| API[Spring Boot API]
+    UI -->|SSE ?token=| SSE[SSE 通道]
+    API --> Auth[JWT 过滤器]
+    Auth --> Svc[业务 Service]
+    Svc --> Agent[Aite Agent Loop]
+    Agent --> LLM[大模型]
+    Agent --> Tool[工具]
     Agent --> Redis[(Redis 短期记忆)]
-    Agent --> RAG[RAG 检索服务]
+    Agent --> RAG[RAG 检索]
     RAG --> PG[(PostgreSQL + pgvector)]
-    API --> DB[(PostgreSQL 业务数据)]
+    Svc --> DB[(PostgreSQL 业务数据)]
     Agent --> SSE
 ```
 
 ## 核心能力
 
+### 用户鉴权与数据隔离
+
+- `app_user` 用户表，密码 **BCrypt** 存储。
+- **Access Token**（默认 1h）+ **Refresh Token**（默认 7d）。
+- 业务表（`agent`、`chat_session`、`knowledge_base` 等）通过 `user_id` 过滤，防止越权访问。
+
 ### 智能体对话
 
-- 支持创建和管理不同 Agent。
-- 支持为 Agent 配置提示词、模型参数、工具和知识库。
-- 支持多轮上下文恢复，让模型能够结合历史对话继续回答。
+- 创建与管理智能体，配置提示词、模型、工具与知识库。
+- 多轮上下文与历史会话恢复。
 
 ### 知识库与 RAG
 
-- 支持知识库、文档和文档分块管理。
-- 支持 Markdown 内容解析和向量化存储。
-- 使用 PostgreSQL + pgvector 完成向量召回，降低部署复杂度。
+- 知识库、文档、分块管理；Markdown 向量化与 pgvector 召回。
 
 ### 记忆系统
 
-- Redis 用于保存近期聊天窗口和摘要结果。
-- 长期记忆会从用户输入中抽取偏好和事实，并在后续对话中按相似度召回。
-- 可通过配置控制长期记忆抽取数量、召回范围、注入数量和注入提示词。
-
-### 工具调用
-
-- Agent 可以在推理过程中调用后端工具。
-- 工具执行结果会回写到对话上下文，辅助模型继续规划。
-- 新增工具时只需遵循现有工具注册模式，核心 Agent 流程无需大改。
+- Redis：近期对话窗口与摘要。
+- 长期记忆：抽取偏好/事实，按相似度注入后续对话。
 
 ## 技术栈
 
-后端技术：
-
-- Java 17
-- Spring Boot 3.5
-- Spring AI 1.1
-- MyBatis
-- PostgreSQL
-- pgvector
-- Redis
-- Lombok
-
-前端技术：
-
-- React 19
-- TypeScript
-- Vite
-- Ant Design 6
-- Tailwind CSS
-
-模型与能力：
-
-- DeepSeek
-- 智谱 AI
-- OpenAI 兼容接口
-- Embedding 向量检索
-- SSE 服务端推送
+| 层级 | 技术 |
+|------|------|
+| 后端 | Java 17、Spring Boot 3.5、Spring AI 1.1、Spring Security、JWT (jjwt)、MyBatis |
+| 数据 | PostgreSQL、pgvector、Redis |
+| 前端 | React 19、TypeScript、Vite、Ant Design 6、Tailwind CSS |
+| 模型 | DeepSeek、智谱 AI、OpenAI 兼容接口 |
 
 ## 项目结构
 
 ```text
-JChatMind-main/
-├── jchatmind/
-│   ├── src/main/java/com/kama/jchatmind/
-│   │   ├── agent/              # Agent 核心执行流程
-│   │   ├── controller/         # REST API 和 SSE 接口
-│   │   ├── service/            # 业务服务、RAG、记忆、工具门面
-│   │   ├── mapper/             # MyBatis 数据访问层
-│   │   └── model/              # DTO、Entity、Request、Response、VO
-│   ├── src/main/resources/
-│   │   └── mapper/             # MyBatis XML 映射文件
-│   └── long-term-memory-ddl.sql# 长期记忆表和索引脚本
-├── ui/                         # React 前端应用
-└── jchatmind_sql/              # 项目初始化 SQL
+aite_Agent/
+├── README.md
+└── JChatMind-main/
+    ├── jchatmind/                    # Spring Boot 后端
+    │   ├── src/main/java/.../
+    │   │   ├── agent/                # Agent 核心流程
+    │   │   ├── controller/           # REST API（含 AuthController）
+    │   │   ├── security/             # JWT、SecurityConfig、UserContext
+    │   │   ├── service/              # 业务门面
+    │   │   └── mapper/               # MyBatis
+    │   └── long-term-memory-ddl.sql
+    ├── ui/                           # React 前端（登录页、AiteAgent 布局）
+    └── jchatmind_sql/                # 初始化 SQL
+        └── jchatmind_assert/
+            └── auth_migration.sql    # 用户表与 user_id 迁移
 ```
 
 ## 快速开始
 
-### 1. 准备环境
+以下命令默认在仓库根目录执行；路径以 `JChatMind-main/` 为前缀。
 
-请先安装以下环境：
+### 1. 环境要求
 
-- JDK 17+
-- Maven 3.8+
-- Node.js 20+
-- PostgreSQL 14+
+- JDK 17+、Maven 3.8+、Node.js 20+
+- PostgreSQL 14+（扩展 `vector`、`pgcrypto`）
 - Redis 6+
-- PostgreSQL 扩展 `vector` 和 `pgcrypto`
 
 ### 2. 初始化数据库
 
@@ -141,95 +119,127 @@ CREATE DATABASE jchatmind;
 ```
 
 ```bash
-psql -U postgres -d jchatmind -f jchatmind_sql/jchatmind.sql
-psql -U postgres -d jchatmind -f jchatmind/long-term-memory-ddl.sql
+psql -U postgres -d jchatmind -f JChatMind-main/jchatmind_sql/jchatmind.sql
+psql -U postgres -d jchatmind -f JChatMind-main/jchatmind/long-term-memory-ddl.sql
+psql -U postgres -d jchatmind -f JChatMind-main/jchatmind_sql/jchatmind_assert/auth_migration.sql
 ```
+
+> `auth_migration.sql` 会创建 `app_user` 表，并为业务表添加 `user_id` 列，**鉴权功能必须执行此脚本**。
 
 ### 3. 配置后端
 
-在本地创建或修改 `jchatmind/src/main/resources/application.yaml`，配置数据库、Redis、邮箱和模型 API Key。
+在 `JChatMind-main/jchatmind/src/main/resources/application.yaml` 中配置（勿提交真实密钥）：
 
-请不要提交真实密钥。建议在生产环境通过环境变量、密钥管理服务或私有配置文件注入敏感信息。
+| 配置项 | 说明 |
+|--------|------|
+| `spring.datasource` | PostgreSQL 连接 |
+| `spring.data.redis` | Redis 连接 |
+| `spring.ai.*` | 模型 API Key |
+| `jchatmind.auth.jwt-secret` | JWT 签名密钥（生产环境用环境变量 `JWT_SECRET`） |
+| `jchatmind.auth.access-token-expiration` | Access Token 有效期（毫秒，默认 3600000） |
+| `jchatmind.auth.refresh-token-expiration` | Refresh Token 有效期（毫秒，默认 604800000） |
+| `jchatmind.memory.*` | 短/长期记忆策略 |
 
-关键配置包括：
+示例：
 
-- `spring.datasource`：PostgreSQL 数据库连接。
-- `spring.data.redis`：Redis 连接。
-- `spring.ai.*`：模型供应商和 API Key。
-- `jchatmind.query-rewrite`：查询重写开关和模型。
-- `jchatmind.memory.redis`：短期记忆窗口、摘要阈值和缓存时间。
-- `jchatmind.memory.long-term`：长期记忆抽取、召回和注入策略。
+```yaml
+jchatmind:
+  auth:
+    jwt-secret: ${JWT_SECRET:your-256-bit-secret-key-change-in-production}
+    access-token-expiration: 3600000
+    refresh-token-expiration: 604800000
+```
 
 ### 4. 启动后端
 
 ```bash
-cd jchatmind
+cd JChatMind-main/jchatmind
 mvn spring-boot:run
 ```
 
-健康检查：
-
-```text
-GET http://localhost:8080/health
-```
+健康检查：`GET http://localhost:8080/health`
 
 ### 5. 启动前端
 
 ```bash
-cd ui
+cd JChatMind-main/ui
 npm install
 npm run dev
 ```
 
-前端启动后，按终端输出的 Vite 地址访问页面。
+浏览器访问 Vite 地址（通常 `http://localhost:5173`）：
 
-## 常用接口
+1. 首次进入 **登录页**（`/login`），注册并登录。
+2. 登录成功后进入主界面，可创建智能体、知识库并开始对话。
+3. Token 保存在浏览器 `localStorage`，刷新页面无需重复登录。
 
-- `GET /api/agents`：查询智能体列表。
-- `POST /api/agents`：创建智能体。
-- `GET /api/chat-sessions`：查询聊天会话。
-- `POST /api/chat-sessions`：创建聊天会话。
-- `GET /api/chat-messages/session/{sessionId}`：查询会话消息。
-- `POST /api/chat-messages`：发送用户消息。
-- `GET /api/knowledge-bases`：查询知识库。
-- `POST /api/documents/upload`：上传知识库文档。
-- `GET /api/tools`：查询可选工具。
-- `GET /sse/connect/{chatSessionId}`：建立 SSE 实时连接。
+## API 说明
+
+### 认证（无需 Token）
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/auth/register` | 注册 `{ username, password, nickname? }` |
+| POST | `/api/auth/login` | 登录，返回 `accessToken`、`refreshToken` |
+| POST | `/api/auth/refresh` | 刷新 Token `{ refreshToken }` |
+
+### 认证（需要 Bearer Token）
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/auth/me` | 当前用户信息 |
+| GET | `/api/agents` | 当前用户的智能体列表 |
+| POST | `/api/agents` | 创建智能体 |
+| GET | `/api/chat-sessions` | 聊天会话列表 |
+| POST | `/api/chat-messages` | 发送消息 |
+| GET | `/api/knowledge-bases` | 知识库列表 |
+| POST | `/api/documents/upload` | 上传文档（multipart） |
+| GET | `/api/tools` | 可选工具列表 |
+
+请求头示例：
+
+```http
+Authorization: Bearer <accessToken>
+```
+
+### SSE 实时连接
+
+`EventSource` 无法设置自定义 Header，需通过 **Query Param** 传 Token：
+
+```text
+GET /sse/connect/{chatSessionId}?token=<accessToken>
+```
 
 ## 开发命令
 
-后端编译：
-
 ```bash
-cd jchatmind
-mvn -DskipTests compile
+# 后端编译
+cd JChatMind-main/jchatmind && mvn -DskipTests compile
+
+# 后端测试
+cd JChatMind-main/jchatmind && mvn test
+
+# 前端开发 / 构建
+cd JChatMind-main/ui && npm run dev
+cd JChatMind-main/ui && npm run build
+cd JChatMind-main/ui && npm run lint
 ```
 
-后端测试：
+## 安全说明
 
-```bash
-cd jchatmind
-mvn test
-```
+- **不要**将 `.env`、`application.yaml` 或真实 API Key 提交到公开仓库。
+- 生产环境请使用强随机 `JWT_SECRET`，并通过环境变量注入。
+- 迁移前产生的历史数据 `user_id` 可能为空，仅新注册用户数据会完整隔离。
+- 公开仓库建议仅保留示例配置，敏感信息走 CI/CD 密钥或私有配置。
 
-前端开发：
+## 后续规划
 
-```bash
-cd ui
-npm run dev
-```
+- [ ] SSE 服务端 Token 校验与会话归属校验完善
+- [ ] 知识库文档重建索引
+- [ ] 工具调用审计日志
+- [ ] Docker Compose 一键启动
+- [ ] 更多 OpenAI 兼容模型供应商
 
-前端构建：
+## License
 
-```bash
-cd ui
-npm run build
-```
-
-前端代码检查：
-
-```bash
-cd ui
-npm run lint
-```
-
+如需开源协议，请在仓库中补充 `LICENSE` 文件。
