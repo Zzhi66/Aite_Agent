@@ -233,11 +233,12 @@ cd JChatMind-main/ui && npm run lint
 
 ## 后续规划
 
+
+- [ ] LLM沉淀偏好（现阶段是关键词匹配）+用户偏好和事实后台查看与修改功能
 - [ ] SSE 服务端 Token 校验与会话归属校验完善
 - [ ] 知识库文档重建索引
 - [ ] 工具调用审计日志
 - [ ] Docker Compose 一键启动
-- [ ] 更多 OpenAI 兼容模型供应商
 
 ## License
 
