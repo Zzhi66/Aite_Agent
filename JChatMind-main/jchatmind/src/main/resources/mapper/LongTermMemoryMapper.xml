@@ -6,6 +6,7 @@
 
     <resultMap id="BaseResultMap" type="com.kama.jchatmind.model.entity.LongTermMemory">
         <id property="id" column="id" jdbcType="VARCHAR"/>
+        <result property="userId" column="user_id" jdbcType="VARCHAR"/>
         <result property="agentId" column="agent_id" jdbcType="VARCHAR"/>
         <result property="sessionId" column="session_id" jdbcType="VARCHAR"/>
         <result property="memoryType" column="memory_type" jdbcType="VARCHAR"/>
@@ -17,10 +18,21 @@
         <result property="distance" column="distance" jdbcType="DOUBLE"/>
     </resultMap>
 
+    <!-- 列表/详情不含 embedding -->
+    <resultMap id="ListResultMap" type="com.kama.jchatmind.model.entity.LongTermMemory" extends="BaseResultMap">
+        <result property="embedding" column="embedding" jdbcType="VARCHAR" javaType="String"/>
+    </resultMap>
+
+    <sql id="List_Column_List">
+        id, user_id, agent_id, session_id, memory_type, content,
+        metadata::text AS metadata, created_at, updated_at
+    </sql>
+
     <insert id="insert" parameterType="com.kama.jchatmind.model.entity.LongTermMemory"
             keyColumn="id" keyProperty="id" useGeneratedKeys="true">
         INSERT INTO long_term_memory
-        (agent_id,
+        (user_id,
+         agent_id,
          session_id,
          memory_type,
          content,
@@ -28,8 +40,15 @@
          embedding,
          created_at,
          updated_at)
-        VALUES (CAST(#{agentId} AS uuid),
-                CAST(#{sessionId} AS uuid),
+        VALUES (CAST(#{userId} AS uuid),
+                <choose>
+                    <when test="agentId != null and agentId != ''">CAST(#{agentId} AS uuid)</when>
+                    <otherwise>NULL</otherwise>
+                </choose>,
+                <choose>
+                    <when test="sessionId != null and sessionId != ''">CAST(#{sessionId} AS uuid)</when>
+                    <otherwise>NULL</otherwise>
+                </choose>,
                 #{memoryType},
                 #{content},
                 CAST(#{metadata} AS jsonb),
@@ -38,8 +57,82 @@
                 #{updatedAt})
     </insert>
 
+    <select id="selectById" resultMap="ListResultMap">
+        SELECT
+        <include refid="List_Column_List"/>
+        FROM long_term_memory
+        WHERE id = CAST(#{id} AS uuid)
+    </select>
+
+    <select id="selectByUserId" resultMap="ListResultMap">
+        SELECT
+        <include refid="List_Column_List"/>
+        FROM long_term_memory
+        WHERE user_id = CAST(#{userId} AS uuid)
+        <if test="memoryType != null and memoryType != ''">
+            AND memory_type = #{memoryType}
+        </if>
+        ORDER BY created_at DESC
+    </select>
+
+    <update id="updateById" parameterType="com.kama.jchatmind.model.entity.LongTermMemory">
+        UPDATE long_term_memory
+        <set>
+            <if test="memoryType != null">
+                memory_type = #{memoryType},
+            </if>
+            <if test="content != null">
+                content = #{content},
+            </if>
+            <if test="metadata != null">
+                metadata = CAST(#{metadata} AS jsonb),
+            </if>
+            <if test="embedding != null">
+                embedding = #{embedding}::vector,
+            </if>
+            <if test="agentId != null">
+                agent_id = CAST(#{agentId} AS uuid),
+            </if>
+            <if test="sessionId != null">
+                session_id = CAST(#{sessionId} AS uuid),
+            </if>
+            updated_at = #{updatedAt}
+        </set>
+        WHERE id = CAST(#{id} AS uuid)
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM long_term_memory
+        WHERE id = CAST(#{id} AS uuid)
+    </delete>
+
+    <select id="similaritySearchByUser" resultMap="BaseResultMap">
+        SELECT id,
+               user_id,
+               agent_id,
+               session_id,
+               memory_type,
+               content,
+               metadata::text AS metadata,
+               embedding::text AS embedding,
+               created_at,
+               updated_at,
+               <![CDATA[(embedding <-> #{vectorLiteral}::vector)]]> AS distance
+        FROM long_term_memory
+        WHERE user_id = CAST(#{userId} AS uuid)
+        <if test="types != null and types.size() > 0">
+            AND memory_type IN
+            <foreach collection="types" item="type" open="(" separator="," close=")">
+                #{type}
+            </foreach>
+        </if>
+        <![CDATA[ORDER BY embedding <-> #{vectorLiteral}::vector
+        LIMIT #{limit}]]>
+    </select>
+
     <select id="similaritySearchBySession" resultMap="BaseResultMap">
         SELECT id,
+               user_id,
                agent_id,
                session_id,
                memory_type,
@@ -64,6 +157,7 @@
 
     <select id="similaritySearchByAgent" resultMap="BaseResultMap">
         SELECT id,
+               user_id,
                agent_id,
                session_id,
                memory_type,

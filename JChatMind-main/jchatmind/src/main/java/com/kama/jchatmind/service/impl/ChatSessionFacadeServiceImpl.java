@@ -114,15 +114,22 @@ public class ChatSessionFacadeServiceImpl implements ChatSessionFacadeService {
     }
 
     @Override
-    public void deleteChatSession(String chatSessionId) {
-        ChatSession chatSession = chatSessionMapper.selectById(chatSessionId);
-        if (chatSession == null) {
+    public void assertSessionOwnedByCurrentUser(String chatSessionId) {
+        ChatSession session = chatSessionMapper.selectById(chatSessionId);
+        if (session == null) {
             throw new BizException("聊天会话不存在: " + chatSessionId);
         }
-        if (!chatSession.getUserId().equals(UserContext.requireUserId())) {
+        String userId = UserContext.requireUserId();
+        // 历史数据 user_id 为空时一律拒绝，避免越权订阅
+        if (session.getUserId() == null || !session.getUserId().equals(userId)) {
             throw new BizException("无权操作该会话");
         }
-        
+    }
+
+    @Override
+    public void deleteChatSession(String chatSessionId) {
+        assertSessionOwnedByCurrentUser(chatSessionId);
+
         int result = chatSessionMapper.deleteById(chatSessionId);
         if (result <= 0) {
             throw new BizException("删除聊天会话失败");

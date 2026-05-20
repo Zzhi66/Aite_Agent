@@ -18,4 +18,9 @@ public interface ChatSessionFacadeService {
     void deleteChatSession(String chatSessionId);
 
     void updateChatSession(String chatSessionId, UpdateChatSessionRequest request);
+
+    /**
+     * 断言当前登录用户拥有该聊天会话，供 SSE 连接等场景复用。
+     */
+    void assertSessionOwnedByCurrentUser(String chatSessionId);
 }

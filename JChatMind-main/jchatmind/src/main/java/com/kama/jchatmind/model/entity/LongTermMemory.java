@@ -11,6 +11,9 @@ public class LongTermMemory {
 
     private String id;
 
+    /** 记忆归属用户，召回与管理均按此字段隔离 */
+    private String userId;
+
     private String agentId;
 
     private String sessionId;

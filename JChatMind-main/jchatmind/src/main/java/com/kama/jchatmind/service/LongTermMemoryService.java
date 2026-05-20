@@ -25,10 +25,18 @@ public interface LongTermMemoryService {
     @Getter
     @AllArgsConstructor
     enum RecallScope {
+        /** 按用户全量记忆池召回（默认） */
+        USER("USER"),
+        /** @deprecated 已由 USER 替代 */
         SESSION("SESSION"),
+        /** @deprecated 已由 USER 替代 */
         AGENT("AGENT");
 
         private final String code;
+
+        public boolean isUserScope() {
+            return this == USER;
+        }
     }
 
     @Data

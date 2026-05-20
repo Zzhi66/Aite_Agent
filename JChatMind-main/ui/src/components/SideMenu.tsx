@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { RobotOutlined } from "@ant-design/icons";
 import { Tabs, type TabsProps } from "antd";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import AgentTabContent from "./tabs/AgentTabContent.tsx";
 import AddAgentModal from "./modals/AddAgentModal.tsx";
 import ChatTabContent from "./tabs/ChatTabContent.tsx";
@@ -16,6 +16,7 @@ interface SideMenuProps {
 
 const SideMenu: React.FC<SideMenuProps> = () => {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [isAddAgentModalOpen, setIsAddAgentModalOpen] = useState(false);
   const toggleAddAgentModal = () => {
@@ -38,18 +39,28 @@ const SideMenu: React.FC<SideMenuProps> = () => {
   const { agents, createAgentHandle, deleteAgentHandle, updateAgentHandle } =
     useAgents();
 
-  const [activeKey, setActiveKey] = useState(() => {
-    if (location.pathname.startsWith("/agent")) return "agent";
-    if (location.pathname.startsWith("/knowledge-base")) return "knowledgeBase";
-    if (location.pathname.startsWith("/chat")) return "chat";
+  const resolveTabKey = (pathname: string) => {
+    if (pathname.startsWith("/knowledge-base")) return "knowledgeBase";
+    if (pathname.startsWith("/chat")) return "chat";
+    if (pathname.startsWith("/memories")) return "agent";
+    if (pathname.startsWith("/agent")) return "agent";
     return "agent";
-  });
+  };
+
+  /** 由当前路由推导侧边栏激活 Tab，避免 effect 同步 state */
+  const activeKey = resolveTabKey(location.pathname);
 
   const { knowledgeBases, createKnowledgeBaseHandle } = useKnowledgeBases();
 
-  // 处理标签页切换
+  /** 切换侧边栏 Tab 时同步主内容区路由（「我的记忆」在右侧顶栏） */
   const handleTabChange = (key: string) => {
-    setActiveKey(key);
+    if (key === "knowledgeBase") {
+      navigate("/knowledge-base");
+    } else if (key === "chat") {
+      navigate("/chat");
+    } else if (key === "agent") {
+      navigate("/agent");
+    }
   };
 
   const items: TabsProps["items"] = [

@@ -377,3 +377,77 @@ export async function getOptionalTools(): Promise<GetOptionalToolsResponse> {
   const tools = await get<ToolVO[]>("/tools");
   return { tools };
 }
+
+/**
+ * 长期记忆类型：偏好 / 事实
+ */
+export type LongTermMemoryType = "PREFERENCE" | "FACT";
+
+/** 长期记忆 VO（列表不含 embedding） */
+export interface LongTermMemoryVO {
+  id: string;
+  memoryType: LongTermMemoryType;
+  content: string;
+  sourceAgentId?: string;
+  sourceSessionId?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface GetLongTermMemoriesResponse {
+  memories: LongTermMemoryVO[];
+}
+
+export interface GetLongTermMemoryResponse {
+  memory: LongTermMemoryVO;
+}
+
+export interface CreateLongTermMemoryRequest {
+  memoryType: LongTermMemoryType;
+  content: string;
+  sourceAgentId?: string;
+  sourceSessionId?: string;
+}
+
+export interface UpdateLongTermMemoryRequest {
+  memoryType?: LongTermMemoryType;
+  content?: string;
+}
+
+export interface CreateLongTermMemoryResponse {
+  memoryId: string;
+}
+
+/**
+ * 获取当前用户的全部长期记忆（跨 Agent），可按类型筛选
+ */
+export async function getLongTermMemories(
+  memoryType?: LongTermMemoryType,
+): Promise<GetLongTermMemoriesResponse> {
+  return get<GetLongTermMemoriesResponse>("/long-term-memories", {
+    memoryType,
+  });
+}
+
+export async function getLongTermMemory(
+  memoryId: string,
+): Promise<GetLongTermMemoryResponse> {
+  return get<GetLongTermMemoryResponse>(`/long-term-memories/${memoryId}`);
+}
+
+export async function createLongTermMemory(
+  request: CreateLongTermMemoryRequest,
+): Promise<CreateLongTermMemoryResponse> {
+  return post<CreateLongTermMemoryResponse>("/long-term-memories", request);
+}
+
+export async function updateLongTermMemory(
+  memoryId: string,
+  request: UpdateLongTermMemoryRequest,
+): Promise<void> {
+  return patch<void>(`/long-term-memories/${memoryId}`, request);
+}
+
+export async function deleteLongTermMemory(memoryId: string): Promise<void> {
+  return del<void>(`/long-term-memories/${memoryId}`);
+}

@@ -2,6 +2,7 @@ package com.kama.jchatmind.service.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kama.jchatmind.message.SseMessage;
+import com.kama.jchatmind.service.ChatSessionFacadeService;
 import com.kama.jchatmind.service.SseService;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -17,9 +18,13 @@ public class SseServiceImpl implements SseService {
 
     private final ConcurrentMap<String, SseEmitter> clients = new ConcurrentHashMap<>();
     private final ObjectMapper objectMapper;
+    private final ChatSessionFacadeService chatSessionFacadeService;
 
     @Override
     public SseEmitter connect(String chatSessionId) {
+        // 建立连接前校验会话归属，防止跨用户订阅 SSE
+        chatSessionFacadeService.assertSessionOwnedByCurrentUser(chatSessionId);
+
         // 1. 创建一根管道，设定超时时间为 30 分钟 (30 * 60 * 1000 毫秒)
         SseEmitter emitter = new SseEmitter(30 * 60 * 1000L);
         // 2. 存入 Map，key 就是聊天 ID，value 就是这根管道

@@ -70,7 +70,7 @@ flowchart LR
 ### 记忆系统
 
 - Redis：近期对话窗口与摘要。
-- 长期记忆：抽取偏好/事实，按相似度注入后续对话。
+- 长期记忆：按 **用户** 隔离、**跨 Agent 共享**；从对话中抽取偏好/事实（关键词规则），向量检索后注入后续对话；侧边栏「我的记忆」支持查看与 CRUD。
 
 ## 技术栈
 
@@ -121,6 +121,7 @@ CREATE DATABASE jchatmind;
 psql -U postgres -d jchatmind -f JChatMind-main/jchatmind_sql/jchatmind.sql
 psql -U postgres -d jchatmind -f JChatMind-main/jchatmind/long-term-memory-ddl.sql
 psql -U postgres -d jchatmind -f JChatMind-main/jchatmind_sql/jchatmind_assert/auth_migration.sql
+psql -U postgres -d jchatmind -f JChatMind-main/jchatmind/long-term-memory-user-scope.sql
 ```
 
 > `auth_migration.sql` 会创建 `app_user` 表，并为业务表添加 `user_id` 列，**鉴权功能必须执行此脚本**。
@@ -193,6 +194,10 @@ npm run dev
 | POST | `/api/chat-messages` | 发送消息 |
 | GET | `/api/knowledge-bases` | 知识库列表 |
 | POST | `/api/documents/upload` | 上传文档（multipart） |
+| GET | `/api/long-term-memories` | 当前用户长期记忆列表（可选 `memoryType`） |
+| POST | `/api/long-term-memories` | 手动创建长期记忆 |
+| PATCH | `/api/long-term-memories/{id}` | 更新记忆（改内容会 re-embed） |
+| DELETE | `/api/long-term-memories/{id}` | 删除记忆 |
 | GET | `/api/tools` | 可选工具列表 |
 
 请求头示例：
@@ -233,9 +238,9 @@ cd JChatMind-main/ui && npm run lint
 
 ## 后续规划
 
-
-- [ ] LLM沉淀偏好（现阶段是关键词匹配）+用户偏好和事实后台查看与修改功能
-- [ ] SSE 服务端 Token 校验与会话归属校验完善
+- [ ] LLM 结构化沉淀偏好/事实（现阶段为关键词匹配）
+- [x] 用户偏好与事实后台查看与修改（侧边栏「我的记忆」+ `/api/long-term-memories`，按用户隔离、跨 Agent 共享）
+- [x] SSE 服务端 Token 校验（Query `token` + JwtAuthFilter）与会话归属校验（`assertSessionOwnedByCurrentUser`）
 - [ ] 知识库文档重建索引
 - [ ] 工具调用审计日志
 - [ ] Docker Compose 一键启动
