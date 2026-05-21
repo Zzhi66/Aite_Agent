@@ -3,8 +3,12 @@
 <div align="center">
   <h3>面向智能体应用的全栈 Agent 平台</h3>
   <p>
+    <a href="https://github.com/Zzhi66/Aite_Agent">GitHub 仓库</a>
+  </p>
+  <p>
     <strong>Spring AI Agent Loop</strong> ·
     <strong>RAG 知识库</strong> ·
+    <strong>用户长期记忆</strong> ·
     <strong>JWT 鉴权</strong> ·
     <strong>多租户隔离</strong> ·
     <strong>SSE 流式响应</strong>
@@ -84,20 +88,23 @@ flowchart LR
 ## 项目结构
 
 ```text
-aite_Agent/
+Aite_Agent/                           # https://github.com/Zzhi66/Aite_Agent
 ├── README.md
 └── JChatMind-main/
     ├── jchatmind/                    # Spring Boot 后端
     │   ├── src/main/java/.../
     │   │   ├── agent/                # Agent 核心流程
-    │   │   ├── controller/           # REST API（含 AuthController）
+    │   │   ├── controller/           # REST API（Auth、LongTermMemory 等）
     │   │   ├── security/             # JWT、SecurityConfig、UserContext
-    │   │   ├── service/              # 业务门面
+    │   │   ├── service/              # 业务门面（含 SSE 会话归属校验）
     │   │   └── mapper/               # MyBatis
-    │   └── long-term-memory-ddl.sql
-    ├── ui/                           # React 前端（登录页、AiteAgent 布局）
-    └── jchatmind_sql/                # 初始化 SQL
+    │   ├── long-term-memory-ddl.sql
+    │   └── long-term-memory-user-scope.sql
+    ├── ui/                           # React 前端（登录、Aite助手、我的记忆）
+    │   └── src/components/views/MemoryView.tsx
+    └── jchatmind_sql/
         └── jchatmind_assert/
+            ├── jchatmind.sql         # 业务表初始化
             └── auth_migration.sql    # 用户表与 user_id 迁移
 ```
 
@@ -118,13 +125,13 @@ CREATE DATABASE jchatmind;
 ```
 
 ```bash
-psql -U postgres -d jchatmind -f JChatMind-main/jchatmind_sql/jchatmind.sql
+psql -U postgres -d jchatmind -f JChatMind-main/jchatmind_sql/jchatmind_assert/jchatmind.sql
 psql -U postgres -d jchatmind -f JChatMind-main/jchatmind/long-term-memory-ddl.sql
 psql -U postgres -d jchatmind -f JChatMind-main/jchatmind_sql/jchatmind_assert/auth_migration.sql
 psql -U postgres -d jchatmind -f JChatMind-main/jchatmind/long-term-memory-user-scope.sql
 ```
 
-> `auth_migration.sql` 会创建 `app_user` 表，并为业务表添加 `user_id` 列，**鉴权功能必须执行此脚本**。
+> 脚本需按上述顺序执行。`auth_migration.sql` 创建 `app_user` 并为业务表添加 `user_id`（鉴权必选）；`long-term-memory-user-scope.sql` 将长期记忆改为按用户隔离、跨 Agent 共享。
 
 ### 3. 配置后端
 
@@ -208,7 +215,7 @@ Authorization: Bearer <accessToken>
 
 ### SSE 实时连接
 
-`EventSource` 无法设置自定义 Header，需通过 **Query Param** 传 Token：
+`EventSource` 无法设置自定义 Header，需通过 **Query Param** 传 Token；服务端会校验 Token 有效性，并确认 `chatSessionId` 属于当前登录用户（`assertSessionOwnedByCurrentUser`），防止越权订阅他人会话流。
 
 ```text
 GET /sse/connect/{chatSessionId}?token=<accessToken>
