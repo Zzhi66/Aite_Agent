@@ -129,6 +129,7 @@ psql -U postgres -d jchatmind -f JChatMind-main/jchatmind_sql/jchatmind_assert/j
 psql -U postgres -d jchatmind -f JChatMind-main/jchatmind/long-term-memory-ddl.sql
 psql -U postgres -d jchatmind -f JChatMind-main/jchatmind_sql/jchatmind_assert/auth_migration.sql
 psql -U postgres -d jchatmind -f JChatMind-main/jchatmind/long-term-memory-user-scope.sql
+psql -U postgres -d jchatmind -f JChatMind-main/jchatmind/user-mail-config-ddl.sql
 ```
 
 > 脚本需按上述顺序执行。`auth_migration.sql` 创建 `app_user` 并为业务表添加 `user_id`（鉴权必选）；`long-term-memory-user-scope.sql` 将长期记忆改为按用户隔离、跨 Agent 共享。
@@ -206,6 +207,9 @@ npm run dev
 | PATCH | `/api/long-term-memories/{id}` | 更新记忆（改内容会 re-embed） |
 | DELETE | `/api/long-term-memories/{id}` | 删除记忆 |
 | GET | `/api/tools` | 可选工具列表 |
+| GET | `/api/user-mail-config` | 当前用户发件邮箱配置（不含授权码） |
+| PUT | `/api/user-mail-config` | 保存个人 SMTP 配置 |
+| POST | `/api/user-mail-config/test` | 发送测试邮件到本人邮箱 |
 
 请求头示例：
 

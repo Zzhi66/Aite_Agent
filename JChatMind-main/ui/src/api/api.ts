@@ -1,4 +1,4 @@
-import { get, post, patch, del, BASE_URL } from "./http.ts";
+import { get, post, put, patch, del, BASE_URL } from "./http.ts";
 import { getBearerAuthHeaders } from "../utils/token.ts";
 import type { ChatMessageVO, MessageType } from "../types";
 
@@ -450,4 +450,40 @@ export async function updateLongTermMemory(
 
 export async function deleteLongTermMemory(memoryId: string): Promise<void> {
   return del<void>(`/long-term-memories/${memoryId}`);
+}
+
+/** 用户个人发件邮箱配置 */
+export interface UserMailConfigVO {
+  configured: boolean;
+  fromEmail?: string;
+  smtpHost?: string;
+  smtpPort?: number;
+  useSsl?: boolean;
+  passwordSet?: boolean;
+}
+
+export interface GetUserMailConfigResponse {
+  config: UserMailConfigVO;
+}
+
+export interface SaveUserMailConfigRequest {
+  fromEmail: string;
+  smtpHost?: string;
+  smtpPort?: number;
+  smtpPassword?: string;
+  useSsl?: boolean;
+}
+
+export async function getUserMailConfig(): Promise<GetUserMailConfigResponse> {
+  return get<GetUserMailConfigResponse>("/user-mail-config");
+}
+
+export async function saveUserMailConfig(
+  request: SaveUserMailConfigRequest,
+): Promise<void> {
+  return put<void>("/user-mail-config", request);
+}
+
+export async function sendUserMailConfigTest(): Promise<void> {
+  return post<void>("/user-mail-config/test");
 }

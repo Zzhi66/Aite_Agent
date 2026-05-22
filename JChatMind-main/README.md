@@ -11,6 +11,7 @@ psql -U postgres -d jchatmind -f jchatmind_sql/jchatmind_assert/jchatmind.sql
 psql -U postgres -d jchatmind -f jchatmind/long-term-memory-ddl.sql
 psql -U postgres -d jchatmind -f jchatmind_sql/jchatmind_assert/auth_migration.sql
 psql -U postgres -d jchatmind -f jchatmind/long-term-memory-user-scope.sql
+psql -U postgres -d jchatmind -f jchatmind/user-mail-config-ddl.sql
 ```
 
 ### 后端

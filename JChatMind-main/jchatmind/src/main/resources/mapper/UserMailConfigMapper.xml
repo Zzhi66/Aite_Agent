@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kama.jchatmind.mapper.UserMailConfigMapper">
+
+    <resultMap id="BaseResultMap" type="com.kama.jchatmind.model.entity.UserMailConfig">
+        <id property="userId" column="user_id" jdbcType="VARCHAR"/>
+        <result property="fromEmail" column="from_email" jdbcType="VARCHAR"/>
+        <result property="smtpHost" column="smtp_host" jdbcType="VARCHAR"/>
+        <result property="smtpPort" column="smtp_port" jdbcType="INTEGER"/>
+        <result property="smtpPasswordEnc" column="smtp_password_enc" jdbcType="VARCHAR"/>
+        <result property="useSsl" column="use_ssl" jdbcType="BOOLEAN"/>
+        <result property="createdAt" column="created_at" jdbcType="TIMESTAMP"/>
+        <result property="updatedAt" column="updated_at" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <select id="selectByUserId" resultMap="BaseResultMap">
+        SELECT user_id,
+               from_email,
+               smtp_host,
+               smtp_port,
+               smtp_password_enc,
+               use_ssl,
+               created_at,
+               updated_at
+        FROM user_mail_config
+        WHERE user_id = CAST(#{userId} AS uuid)
+    </select>
+
+    <insert id="insert" parameterType="com.kama.jchatmind.model.entity.UserMailConfig">
+        INSERT INTO user_mail_config
+        (user_id, from_email, smtp_host, smtp_port, smtp_password_enc, use_ssl, created_at, updated_at)
+        VALUES (CAST(#{userId} AS uuid),
+                #{fromEmail},
+                #{smtpHost},
+                #{smtpPort},
+                #{smtpPasswordEnc},
+                #{useSsl},
+                #{createdAt},
+                #{updatedAt})
+    </insert>
+
+    <update id="updateByUserId" parameterType="com.kama.jchatmind.model.entity.UserMailConfig">
+        UPDATE user_mail_config
+        SET from_email = #{fromEmail},
+            smtp_host = #{smtpHost},
+            smtp_port = #{smtpPort},
+            smtp_password_enc = #{smtpPasswordEnc},
+            use_ssl = #{useSsl},
+            updated_at = NOW()
+        WHERE user_id = CAST(#{userId} AS uuid)
+    </update>
+
+    <delete id="deleteByUserId">
+        DELETE FROM user_mail_config WHERE user_id = CAST(#{userId} AS uuid)
+    </delete>
+</mapper>

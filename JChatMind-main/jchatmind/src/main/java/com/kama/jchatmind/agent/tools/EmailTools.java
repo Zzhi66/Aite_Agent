@@ -1,6 +1,8 @@
 package com.kama.jchatmind.agent.tools;
 
+import com.kama.jchatmind.security.UserContext;
 import com.kama.jchatmind.service.EmailService;
+import com.kama.jchatmind.service.UserMailConfigService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -9,9 +11,11 @@ import org.springframework.stereotype.Component;
 public class EmailTools implements Tool {
 
     private final EmailService emailService;
+    private final UserMailConfigService userMailConfigService;
 
-    public EmailTools(EmailService emailService) {
+    public EmailTools(EmailService emailService, UserMailConfigService userMailConfigService) {
         this.emailService = emailService;
+        this.userMailConfigService = userMailConfigService;
     }
 
     @Override
@@ -21,7 +25,7 @@ public class EmailTools implements Tool {
 
     @Override
     public String getDescription() {
-        return "一个用于发送邮件的工具，可以通过QQ邮箱发送邮件给指定的收件人。邮件发送采用异步方式，不会阻塞工具调用。";
+        return "使用当前登录用户已配置的个人邮箱发送邮件。用户需先在「邮箱设置」中配置 SMTP；邮件异步发送。";
     }
 
     @Override
@@ -30,19 +34,24 @@ public class EmailTools implements Tool {
     }
 
     /**
-     * 发送邮件（异步执行）
-     *
-     * @param to      收件人邮箱地址
-     * @param subject 邮件主题
-     * @param content 邮件内容
-     * @return 发送结果信息
+     * 发送邮件（异步执行，发件人为用户自己配置的邮箱）
      */
     @org.springframework.ai.tool.annotation.Tool(
             name = "sendEmail",
-            description = "发送邮件到指定的收件人。参数包括：to（收件人邮箱地址，必填）、subject（邮件主题，必填）、content（邮件正文内容，必填）。邮件采用异步方式发送，工具调用会立即返回，实际发送在后台执行。"
+            description = "使用当前用户的个人邮箱发送邮件。参数：to（收件人，必填）、subject（主题，必填）、content（正文，必填）。用户须已配置 SMTP。"
     )
     public String sendEmail(String to, String subject, String content) {
-        // 验证参数
+        String userId;
+        try {
+            userId = UserContext.requireUserId();
+        } catch (IllegalStateException e) {
+            return "错误：无法识别当前用户，请重新登录后再试";
+        }
+
+        if (!userMailConfigService.isConfigured(userId)) {
+            return "错误：您尚未配置个人发件邮箱。请在应用内打开「邮箱设置」，填写邮箱地址与 SMTP 授权码后再使用发信功能。";
+        }
+
         if (to == null || to.trim().isEmpty()) {
             return "错误：收件人邮箱地址不能为空";
         }
@@ -52,16 +61,16 @@ public class EmailTools implements Tool {
         if (content == null || content.trim().isEmpty()) {
             return "错误：邮件内容不能为空";
         }
-
-        // 验证邮箱格式（简单验证）
         if (!to.contains("@")) {
             return "错误：收件人邮箱地址格式不正确";
         }
 
-        // 异步发送邮件
-        emailService.sendEmailAsync(to.trim(), subject.trim(), content.trim());
+        emailService.sendEmailAsync(userId, to.trim(), subject.trim(), content.trim());
 
-        log.info("邮件已提交异步发送，收件人: {}, 主题: {}", to, subject);
-        return String.format("邮件已提交发送！\n收件人: %s\n主题: %s\n邮件正在后台异步发送中...", to, subject);
+        log.info("邮件已提交异步发送，用户: {}, 收件人: {}, 主题: {}", userId, to, subject);
+        return String.format(
+                "邮件已提交发送（将使用您配置的个人邮箱作为发件人）！\n收件人: %s\n主题: %s\n正在后台发送...",
+                to, subject
+        );
     }
 }
