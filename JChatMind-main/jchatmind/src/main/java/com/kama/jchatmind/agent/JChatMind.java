@@ -241,7 +241,9 @@ public class JChatMind {
                                 \s
                 【额外信息】
                 - 你目前拥有的知识库列表以及描述：%s
-                - 如果有缺失的上下文时，优先从知识库中进行搜索
+                - 需要查阅用户已上传的文档、项目内部资料时，优先使用 KnowledgeTool 从知识库检索
+                - 需要实时新闻、天气、股价、最新事件等互联网信息时，使用 webSearch；若摘要不足，再对 1～2 个相关链接使用 fetchUrl
+                - 避免对同一问题重复调用 webSearch；fetchUrl 仅用于需要精读单页正文的场景
                 """.formatted(this.availableKbs);
 
         Prompt prompt = Prompt.builder()

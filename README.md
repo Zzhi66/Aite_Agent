@@ -32,7 +32,7 @@
 - **长短期记忆**：Redis 保存近期对话；PostgreSQL + pgvector 沉淀用户偏好与事实记忆（可切换到云向量数据库）。
 - **JWT 鉴权与多租户**：注册/登录、双 Token 刷新；Agent、会话、知识库按 `user_id` 隔离。
 - **多模型接入**：DeepSeek、智谱 AI、OpenAI 兼容接口。
-- **工具系统**：文件系统、邮件、任务终止等可扩展工具。
+- **工具系统**：邮件、数据库查询、联网搜索与网页抓取、任务终止等可扩展工具。
 - **实时体验**：SSE 推送 Agent 状态与流式回复；前端 React + Ant Design。
 
 ## 架构概览
@@ -147,6 +147,8 @@ psql -U postgres -d jchatmind -f JChatMind-main/jchatmind/user-mail-config-ddl.s
 | `jchatmind.auth.access-token-expiration` | Access Token 有效期（毫秒，默认 3600000） |
 | `jchatmind.auth.refresh-token-expiration` | Refresh Token 有效期（毫秒，默认 604800000） |
 | `jchatmind.memory.*` | 短/长期记忆策略 |
+| `TAVILY_API_KEY` / `spring.ai.tavily.api-key` | Tavily 联网搜索 API Key（使用 `webTool` 时必填） |
+| `jchatmind.web.*` | 联网搜索与网页抓取超时、结果条数、正文长度等 |
 
 示例：
 
@@ -180,6 +182,23 @@ npm run dev
 1. 首次进入 **登录页**（`/login`），注册并登录。
 2. 登录成功后进入主界面，可创建智能体、知识库并开始对话。
 3. Token 保存在浏览器 `localStorage`，刷新页面无需重复登录。
+
+### 6. 联网搜索工具（可选）
+
+1. 在 [Tavily](https://tavily.com/) 注册并获取 API Key。
+2. 设置环境变量（推荐）：
+
+```bash
+export TAVILY_API_KEY=tvly-xxxxxxxx
+```
+
+或在 `application.yaml` 中配置 `spring.ai.tavily.api-key`（勿提交到公开仓库）。
+3. 创建/编辑智能体时，在「工具调用」中勾选 **webTool**。
+4. Agent 将可使用：
+   - `webSearch`：联网检索实时信息（依赖 Tavily）
+   - `fetchUrl`：抓取指定网页正文（无需 Tavily，内置 SSRF 防护）
+
+> Tavily 提供免费额度，超出后按官网计费。`fetchUrl` 仅允许公网 HTTP/HTTPS，禁止访问内网地址。
 
 ## API 说明
 
