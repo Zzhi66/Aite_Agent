@@ -7,6 +7,7 @@ import ContentTopBar from "./ContentTopBar.tsx";
 import AgentChatView from "./views/AgentChatView.tsx";
 import KnowledgeBaseView from "./views/KnowledgeBaseView.tsx";
 import MemoryView from "./views/MemoryView.tsx";
+import EmailSettingsView from "./views/EmailSettingsView.tsx";
 
 /** 主应用布局：左侧边栏 + 右侧内容区（顶栏含「我的记忆」） */
 export default function AiteAgentLayout() {
@@ -30,6 +31,7 @@ export default function AiteAgentLayout() {
                 element={<KnowledgeBaseView />}
               />
               <Route path="/memories" element={<MemoryView />} />
+              <Route path="/email-settings" element={<EmailSettingsView />} />
             </Routes>
           </div>
         </div>

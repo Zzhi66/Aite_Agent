@@ -12,6 +12,7 @@ import com.kama.jchatmind.model.request.UpdateChatMessageRequest;
 import com.kama.jchatmind.model.response.CreateChatMessageResponse;
 import com.kama.jchatmind.model.response.GetChatMessagesResponse;
 import com.kama.jchatmind.model.vo.ChatMessageVO;
+import com.kama.jchatmind.security.UserContext;
 import com.kama.jchatmind.service.ChatMemoryCacheService;
 import com.kama.jchatmind.service.ChatMessageFacadeService;
 import com.kama.jchatmind.service.LongTermMemoryService;
@@ -83,7 +84,8 @@ public class ChatMessageFacadeServiceImpl implements ChatMessageFacadeService {
         publisher.publishEvent(new ChatEvent(
                         request.getAgentId(),
                         chatMessage.getSessionId(),
-                        chatMessage.getContent()
+                        chatMessage.getContent(),
+                        UserContext.requireUserId()
                 )
         );
         // 返回生成的 chatMessageId
