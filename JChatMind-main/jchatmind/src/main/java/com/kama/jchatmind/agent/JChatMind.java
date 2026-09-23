@@ -357,7 +357,8 @@ public class JChatMind {
 
         if (toolResponseMessage.getResponses()
                 .stream()
-                .anyMatch(resp -> resp.name().equals("terminate"))) {
+                .anyMatch(resp -> resp.name().equals("terminate") || resp.name().equals("sendEmail"))) {
+            // Email tool only prepares a draft. End this run and let the user decide in the UI.
             this.agentState = AgentState.FINISHED;
             log.info("任务结束");
         }

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kama.jchatmind.mapper.EmailApprovalMapper">
+    <resultMap id="Approval" type="com.kama.jchatmind.model.entity.EmailApprovalRecord">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="to" column="recipient"/>
+        <result property="subject" column="subject"/>
+        <result property="content" column="content"/>
+        <result property="status" column="status"/>
+        <result property="expiresAt" column="expires_at"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+    <insert id="insert">
+        INSERT INTO email_approval (id, user_id, recipient, subject, content, expires_at)
+        VALUES (CAST(#{id} AS uuid), CAST(#{userId} AS uuid), #{to}, #{subject}, #{content},
+                CURRENT_TIMESTAMP + INTERVAL '10' MINUTE)
+    </insert>
+    <select id="selectOwned" resultMap="Approval">
+        SELECT id, user_id, recipient, subject, content, status, expires_at, created_at, updated_at
+        FROM email_approval WHERE id = CAST(#{id} AS uuid) AND user_id = CAST(#{userId} AS uuid)
+    </select>
+    <update id="expirePending">
+        UPDATE email_approval SET status = 'EXPIRED', updated_at = CURRENT_TIMESTAMP
+        WHERE id = CAST(#{id} AS uuid) AND user_id = CAST(#{userId} AS uuid)
+          AND status = 'PENDING' AND expires_at &lt;= CURRENT_TIMESTAMP
+    </update>
+    <!-- The claim commits BEFORE SMTP; no transaction may span the external send. -->
+    <update id="claimPending">
+        UPDATE email_approval SET status = 'SENDING', updated_at = CURRENT_TIMESTAMP
+        WHERE id = CAST(#{id} AS uuid) AND user_id = CAST(#{userId} AS uuid)
+          AND status = 'PENDING' AND expires_at &gt; CURRENT_TIMESTAMP
+    </update>
+    <update id="cancelPending">
+        UPDATE email_approval SET status = 'CANCELLED', updated_at = CURRENT_TIMESTAMP
+        WHERE id = CAST(#{id} AS uuid) AND user_id = CAST(#{userId} AS uuid)
+          AND status = 'PENDING' AND expires_at &gt; CURRENT_TIMESTAMP
+    </update>
+    <update id="finishSending">
+        UPDATE email_approval SET status = #{status}, updated_at = CURRENT_TIMESTAMP
+        WHERE id = CAST(#{id} AS uuid) AND user_id = CAST(#{userId} AS uuid) AND status = 'SENDING'
+    </update>
+</mapper>

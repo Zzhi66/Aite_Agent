@@ -1,7 +1,7 @@
 package com.kama.jchatmind.agent.tools;
 
 import com.kama.jchatmind.security.UserContext;
-import com.kama.jchatmind.service.EmailService;
+import com.kama.jchatmind.service.EmailApprovalService;
 import com.kama.jchatmind.service.UserMailConfigService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -10,11 +10,11 @@ import org.springframework.stereotype.Component;
 @Component
 public class EmailTools implements Tool {
 
-    private final EmailService emailService;
+    private final EmailApprovalService emailApprovalService;
     private final UserMailConfigService userMailConfigService;
 
-    public EmailTools(EmailService emailService, UserMailConfigService userMailConfigService) {
-        this.emailService = emailService;
+    public EmailTools(EmailApprovalService emailApprovalService, UserMailConfigService userMailConfigService) {
+        this.emailApprovalService = emailApprovalService;
         this.userMailConfigService = userMailConfigService;
     }
 
@@ -25,7 +25,7 @@ public class EmailTools implements Tool {
 
     @Override
     public String getDescription() {
-        return "使用当前登录用户已配置的个人邮箱发送邮件。用户需先在「邮箱设置」中配置 SMTP；邮件异步发送。";
+        return "准备邮件并请求用户确认；用户在确认卡片点击发送前，不会发送邮件。需先配置个人 SMTP。";
     }
 
     @Override
@@ -34,11 +34,11 @@ public class EmailTools implements Tool {
     }
 
     /**
-     * 发送邮件（异步执行，发件人为用户自己配置的邮箱）
+     * 只创建待确认邮件，不执行发送。确认接口不注册为模型工具。
      */
     @org.springframework.ai.tool.annotation.Tool(
             name = "sendEmail",
-            description = "使用当前用户的个人邮箱发送邮件。参数：to（收件人，必填）、subject（主题，必填）、content（正文，必填）。用户须已配置 SMTP。"
+            description = "准备待确认邮件，不直接发送。参数：to（收件人）、subject（主题）、content（正文），均必填。用户须先配置 SMTP，再在界面确认卡片上点击发送。"
     )
     public String sendEmail(String to, String subject, String content) {
         String userId;
@@ -65,12 +65,9 @@ public class EmailTools implements Tool {
             return "错误：收件人邮箱地址格式不正确";
         }
 
-        emailService.sendEmailAsync(userId, to.trim(), subject.trim(), content.trim());
-
-        log.info("邮件已提交异步发送，用户: {}, 收件人: {}, 主题: {}", userId, to, subject);
-        return String.format(
-                "邮件已提交发送（将使用您配置的个人邮箱作为发件人）！\n收件人: %s\n主题: %s\n正在后台发送...",
-                to, subject
-        );
+        var approval = emailApprovalService.create(to, subject, content);
+        // ID is server-generated UUID; draft contents are retrieved through an owner-checked API.
+        return "{\"type\":\"" + EmailApprovalService.TYPE + "\",\"approvalId\":\""
+                + approval.id() + "\",\"message\":\"邮件尚未发送，请用户在确认卡片中确认或取消。\"}";
     }
 }

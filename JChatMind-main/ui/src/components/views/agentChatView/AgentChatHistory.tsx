@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Bubble } from "@ant-design/x";
 import XMarkdown from "@ant-design/x-markdown";
+import EmailApprovalCard from "./EmailApprovalCard.tsx";
 import {
   ToolOutlined,
   CheckCircleOutlined,
@@ -65,6 +66,12 @@ const ToolResponseDisplay: React.FC<{ toolResponse: ToolResponse }> = ({
     dataPreview = toolResponse.responseData.length > 100 
       ? toolResponse.responseData.slice(0, 100) + "..." 
       : toolResponse.responseData;
+  }
+
+  if (toolResponse.name === "sendEmail" && parsedData && typeof parsedData === "object"
+      && "type" in parsedData && parsedData.type === "EMAIL_APPROVAL_REQUIRED"
+      && "approvalId" in parsedData && typeof parsedData.approvalId === "string") {
+    return <EmailApprovalCard key={parsedData.approvalId} approvalId={parsedData.approvalId} />;
   }
 
   return (

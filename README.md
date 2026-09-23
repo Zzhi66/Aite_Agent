@@ -34,6 +34,7 @@
 - **多模型接入**：DeepSeek、智谱 AI、OpenAI 兼容接口。
 - **工具系统**：文件系统、邮件、任务终止等可扩展工具。
 - **实时体验**：SSE 推送 Agent 状态与流式回复；前端 React + Ant Design。
+- **邮件发送确认**：Agent 只生成待确认邮件，用户在聊天卡片核对收件人、主题和正文后点击发送；支持取消、10 分钟过期、用户归属校验和重复确认保护。
 
 ## 架构概览
 
@@ -75,6 +76,28 @@ flowchart LR
 
 - Redis：近期对话窗口与摘要。
 - 长期记忆：按 **用户** 隔离、**跨 Agent 共享**；从对话中抽取偏好/事实（关键词规则），向量检索后注入后续对话；侧边栏「我的记忆」支持查看与 CRUD。
+
+### 邮件工具安全（数据库持久化）
+
+1. Agent 调用 `sendEmail` 只创建待确认草稿，当前 Agent 循环随后结束。
+2. 工具消息通过现有 SSE 展示确认卡片；页面刷新后会重新查询该请求的状态。
+3. 用户点击「确认发送」才由后端发送保存的收件人、主题和正文；确认接口不接受修改参数，也不暴露为模型工具。
+4. 可取消待确认操作，10 分钟后自动失效；同一请求只允许一次发送尝试，失败或结果未知时不会自动重试。
+
+确认记录保存在 PostgreSQL 的 `email_approval` 表中，保存用户、收件人、主题、正文、状态、过期时间和创建/更新时间；聊天工具消息通过 `approvalId` 关联。刷新页面或服务重启后仍能查询，过期只禁止发送，不删除历史记录。已有内存版记录无法自动迁移。
+
+确认与取消通过数据库条件更新竞争 `PENDING` 状态，使用数据库时间检查有效期；多个服务实例共享数据库时，同一请求也只允许一次发送尝试。`SENDING` 必须在 SMTP 调用前独立提交，外部发送不放在数据库事务中。若发送中服务退出或结果落库失败，保留 `SENDING` 状态供核对，不自动重试，避免重复邮件。SMTP 返回成功只表示邮件服务器接受请求，不保证最终投递。
+
+此版本只保护邮件工具，尚未实现确认后自动恢复 Agent，发送结果直接显示在卡片中。部署前先执行 `email-approval-ddl.sql`；不需要修改原聊天记录表。
+
+确认 API（均需当前用户 JWT）：`GET /api/email-approvals/{id}`、`POST /api/email-approvals/{id}/confirm`、`POST /api/email-approvals/{id}/cancel`。
+
+相关测试（真实 MyBatis Mapper + H2 PostgreSQL 兼容模式，模拟邮件服务，不发送真实邮件）：
+
+```bash
+cd JChatMind-main/jchatmind
+./mvnw -Dtest=EmailApprovalServiceTest,EmailToolsTest test
+```
 
 ## 技术栈
 
@@ -130,6 +153,7 @@ psql -U postgres -d jchatmind -f JChatMind-main/jchatmind/long-term-memory-ddl.s
 psql -U postgres -d jchatmind -f JChatMind-main/jchatmind_sql/jchatmind_assert/auth_migration.sql
 psql -U postgres -d jchatmind -f JChatMind-main/jchatmind/long-term-memory-user-scope.sql
 psql -U postgres -d jchatmind -f JChatMind-main/jchatmind/user-mail-config-ddl.sql
+psql -U postgres -d jchatmind -f JChatMind-main/jchatmind/email-approval-ddl.sql
 ```
 
 > 脚本需按上述顺序执行。`auth_migration.sql` 创建 `app_user` 并为业务表添加 `user_id`（鉴权必选）；`long-term-memory-user-scope.sql` 将长期记忆改为按用户隔离、跨 Agent 共享。
